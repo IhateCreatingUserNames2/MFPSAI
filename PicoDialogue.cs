@@ -1,7 +1,25 @@
+using System;
+using System.Collections;
+using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
-using System.Collections;
 using UnityEngine.UI;
+
+[Serializable]
+public class OllamaRequest
+{
+    public string model;
+    public string prompt;
+    public int max_tokens;
+    public float temperature;
+}
+
+[Serializable]
+public class OllamaResponse
+{
+    public string RESPONSE;
+    public bool DONE;
+}
 
 public class PicoDialogue : MonoBehaviour
 {
@@ -9,7 +27,8 @@ public class PicoDialogue : MonoBehaviour
     private string ollamaURL = "http://localhost:11434/api/generate";
 
     // The model to use
-    private string model = "llama-3.2-1b";
+    [Tooltip("Ensure the model name matches exactly with the model available on Ollama.")]
+    public string model = "llama3.2:1b"; // Replace with your actual model name
 
     // UI elements to display dialogue
     public Canvas dialogueCanvas;
@@ -30,10 +49,21 @@ public class PicoDialogue : MonoBehaviour
 
     void Start()
     {
+        Debug.Log("PicoDialogue Start()");
+        Debug.Log("Dialogue Canvas Assigned: " + (dialogueCanvas != null));
+        Debug.Log("Dialogue Text Assigned: " + (dialogueText != null));
+        Debug.Log("Player Input Panel Assigned: " + (playerInputPanel != null));
+        Debug.Log("Player Input Field Assigned: " + (playerInputField != null));
+        Debug.Log("Send Button Assigned: " + (sendButton != null));
+
         // Hide the dialogue canvas at the start
         if (dialogueCanvas != null)
         {
             dialogueCanvas.enabled = false;
+        }
+        else
+        {
+            Debug.LogError("Dialogue Canvas is not assigned in the Inspector.");
         }
 
         // Hide the player input panel at the start
@@ -41,12 +71,20 @@ public class PicoDialogue : MonoBehaviour
         {
             playerInputPanel.SetActive(false);
         }
+        else
+        {
+            Debug.LogError("Player Input Panel is not assigned in the Inspector.");
+        }
 
         // Add listener to the send button
         if (sendButton != null)
         {
             sendButton.onClick.RemoveAllListeners(); // Clear any existing listeners
             sendButton.onClick.AddListener(OnSendButtonClicked);
+        }
+        else
+        {
+            Debug.LogError("Send Button is not assigned in the Inspector.");
         }
 
         // Ensure fonts are assigned
@@ -66,6 +104,8 @@ public class PicoDialogue : MonoBehaviour
     // Function to open player input UI
     void OpenPlayerInputUI()
     {
+        Debug.Log("OpenPlayerInputUI called");
+
         if (dialogueCanvas != null)
         {
             dialogueCanvas.enabled = true; // Make sure the canvas is active
@@ -73,8 +113,15 @@ public class PicoDialogue : MonoBehaviour
             if (playerInputPanel != null)
             {
                 playerInputPanel.SetActive(true);
-                playerInputField.text = "";  // Clear the input field
-                playerInputField.ActivateInputField();
+                if (playerInputField != null)
+                {
+                    playerInputField.text = "";  // Clear the input field
+                    playerInputField.ActivateInputField();
+                }
+                else
+                {
+                    Debug.LogError("Player Input Field is not assigned.");
+                }
             }
             else
             {
@@ -87,16 +134,21 @@ public class PicoDialogue : MonoBehaviour
         }
     }
 
-
-
     // Callback when send button is clicked
     public void OnSendButtonClicked()
     {
-        string playerInput = playerInputField.text;
-        playerInputPanel.SetActive(false);
+        if (playerInputField != null)
+        {
+            string playerInput = playerInputField.text;
+            playerInputPanel.SetActive(false);
 
-        // Start the coroutine to get the response
-        StartCoroutine(GetLlamaResponse(playerInput));
+            // Start the coroutine to get the response
+            StartCoroutine(GetLlamaResponse(playerInput));
+        }
+        else
+        {
+            Debug.LogError("Player Input Field is not assigned.");
+        }
     }
 
     IEnumerator GetLlamaResponse(string playerInput)
@@ -109,13 +161,23 @@ public class PicoDialogue : MonoBehaviour
                         $"Player: {playerInput}\n" +
                         $"{npcName}:";
 
-        // Use a static JSON string to debug the issue
-        string jsonData = "{\"model\": \"llama3\", \"prompt\": \"Hello, how are you?\", \"max_length\": 150, \"temperature\": 0.7}";
+        // Create the request object
+        OllamaRequest request = new OllamaRequest
+        {
+            model = model,
+            prompt = prompt,
+            max_tokens = 150,       // Ensure this matches Ollama's API requirements
+            temperature = 0.7f
+        };
+
+        // Serialize the request to JSON
+        string jsonData = JsonUtility.ToJson(request);
+        Debug.Log("JSON Data Sent to Ollama: " + jsonData);
 
         // Convert JSON data to bytes
-        byte[] postData = System.Text.Encoding.UTF8.GetBytes(jsonData);
+        byte[] postData = Encoding.UTF8.GetBytes(jsonData);
 
-        // Create a UnityWebRequest with the JSON data
+        // Create a new UnityWebRequest for the POST request
         UnityWebRequest www = new UnityWebRequest(ollamaURL, "POST");
         www.uploadHandler = new UploadHandlerRaw(postData);
         www.downloadHandler = new DownloadHandlerBuffer();
@@ -124,34 +186,75 @@ public class PicoDialogue : MonoBehaviour
         // Send the request and wait for a response
         yield return www.SendWebRequest();
 
-        if (www.result == UnityWebRequest.Result.Success)
-        {
-            string response = www.downloadHandler.text;
-
-            // Parse the response (assuming it's plain text)
-            string npcReply = ParseOllamaResponse(response);
-
-            // Display the dialogue
-            ShowDialogue(npcReply);
-        }
-        else
+        if (www.result != UnityWebRequest.Result.Success)
         {
             Debug.LogError("Error communicating with Ollama: " + www.error);
-            Debug.Log("Server Response: " + www.downloadHandler.text);  // Log the server response
+            Debug.Log("Server Response: " + www.downloadHandler.text);
             ShowDialogue("Sorry, I'm having trouble communicating right now.");
+            yield break;
         }
+
+        // Initialize the final response string
+        string finalResponse = "";
+
+        // Get the complete response text
+        string response = www.downloadHandler.text;
+
+        // Split the response into individual JSON objects
+        string[] responseChunks = response.Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+        Debug.Log("Total JSON Chunks Received: " + responseChunks.Length);
+
+        foreach (string chunk in responseChunks)
+        {
+            if (!string.IsNullOrEmpty(chunk.Trim()))
+            {
+                try
+                {
+                    // Parse the JSON response
+                    ResponseData parsedResponse = JsonUtility.FromJson<ResponseData>(chunk);
+
+                    if (parsedResponse != null)
+                    {
+                        Debug.Log($"Parsed Response: {parsedResponse.response}, Done: {parsedResponse.done}");
+                        finalResponse += parsedResponse.response;
+
+                        // If "done": true, exit the loop
+                        if (parsedResponse.done)
+                        {
+                            Debug.Log("Received DONE signal from Ollama.");
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogError("ParsedResponse is null.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError("Error parsing JSON chunk: " + ex.Message);
+                }
+            }
+        }
+
+        // Display the final accumulated response
+        ShowDialogue(finalResponse);
     }
 
 
-
-    // Function to parse the response from Ollama
-    string ParseOllamaResponse(string response)
+    // Class to handle the response data
+    [Serializable]
+    public class OllamaResponse
     {
-        // If Ollama returns plain text, return it directly
-        // If Ollama returns JSON, adjust parsing accordingly
-        return response.Trim();
+        public string RESPONSE;
+        public bool DONE;
     }
-
+    public class ResponseData
+    {
+        public string response; // Must match "response" in JSON
+        public bool done;        // Must match "done" in JSON
+    }
     // Function to display dialogue
     void ShowDialogue(string message)
     {
@@ -162,6 +265,10 @@ public class PicoDialogue : MonoBehaviour
 
             // Optionally hide the dialogue after some time
             Invoke("HideDialogue", 5f); // Hides after 5 seconds
+        }
+        else
+        {
+            Debug.LogError("Dialogue Canvas or Dialogue Text is not assigned.");
         }
     }
 
@@ -203,6 +310,7 @@ public class PicoDialogue : MonoBehaviour
         if (dialogueText != null && dialogueText.font == null)
         {
             dialogueText.font = defaultFont;
+            Debug.Log("Assigned default font to Dialogue Text.");
         }
 
         if (playerInputField != null)
@@ -210,6 +318,7 @@ public class PicoDialogue : MonoBehaviour
             if (playerInputField.textComponent != null && playerInputField.textComponent.font == null)
             {
                 playerInputField.textComponent.font = defaultFont;
+                Debug.Log("Assigned default font to Player Input Field Text.");
             }
 
             if (playerInputField.placeholder != null)
@@ -218,6 +327,7 @@ public class PicoDialogue : MonoBehaviour
                 if (placeholderText != null && placeholderText.font == null)
                 {
                     placeholderText.font = defaultFont;
+                    Debug.Log("Assigned default font to Player Input Field Placeholder.");
                 }
             }
         }
