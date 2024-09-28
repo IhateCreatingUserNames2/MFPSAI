@@ -6,9 +6,9 @@ using UnityEngine.UI;
 public class PicoDialogue : MonoBehaviour
 {
     // URL for the Ollama server
-    private string ollamaURL = "http://localhost:1145/generate";
+    private string ollamaURL = "http://localhost:11434/api/generate";
 
-    // The model to use (ensure this matches your installed model)
+    // The model to use
     private string model = "llama-3.2-1b";
 
     // UI elements to display dialogue
@@ -45,8 +45,12 @@ public class PicoDialogue : MonoBehaviour
         // Add listener to the send button
         if (sendButton != null)
         {
+            sendButton.onClick.RemoveAllListeners(); // Clear any existing listeners
             sendButton.onClick.AddListener(OnSendButtonClicked);
         }
+
+        // Ensure fonts are assigned
+        AssignFonts();
     }
 
     void Update()
@@ -57,28 +61,36 @@ public class PicoDialogue : MonoBehaviour
             // Open the player input UI
             OpenPlayerInputUI();
         }
-
-        // Optionally, detect 'G' key for configuration
-        if (isPlayerNear && Input.GetKeyDown(KeyCode.G))
-        {
-            // Implement configuration UI if needed
-            // OpenConfigurationUI();
-        }
     }
 
     // Function to open player input UI
     void OpenPlayerInputUI()
     {
-        if (playerInputPanel != null)
+        if (dialogueCanvas != null)
         {
-            playerInputPanel.SetActive(true);
-            playerInputField.text = "";
-            playerInputField.ActivateInputField();
+            dialogueCanvas.enabled = true; // Make sure the canvas is active
+
+            if (playerInputPanel != null)
+            {
+                playerInputPanel.SetActive(true);
+                playerInputField.text = "";  // Clear the input field
+                playerInputField.ActivateInputField();
+            }
+            else
+            {
+                Debug.LogError("Player Input Panel is not assigned.");
+            }
+        }
+        else
+        {
+            Debug.LogError("Dialogue Canvas is not assigned.");
         }
     }
 
+
+
     // Callback when send button is clicked
-    void OnSendButtonClicked()
+    public void OnSendButtonClicked()
     {
         string playerInput = playerInputField.text;
         playerInputPanel.SetActive(false);
@@ -97,8 +109,8 @@ public class PicoDialogue : MonoBehaviour
                         $"Player: {playerInput}\n" +
                         $"{npcName}:";
 
-        // Create JSON data with the prompt and model
-        string jsonData = $"{{\"model\": \"{model}\", \"prompt\": \"{prompt}\"}}";
+        // Use a static JSON string to debug the issue
+        string jsonData = "{\"model\": \"llama3\", \"prompt\": \"Hello, how are you?\", \"max_length\": 150, \"temperature\": 0.7}";
 
         // Convert JSON data to bytes
         byte[] postData = System.Text.Encoding.UTF8.GetBytes(jsonData);
@@ -125,9 +137,12 @@ public class PicoDialogue : MonoBehaviour
         else
         {
             Debug.LogError("Error communicating with Ollama: " + www.error);
+            Debug.Log("Server Response: " + www.downloadHandler.text);  // Log the server response
             ShowDialogue("Sorry, I'm having trouble communicating right now.");
         }
     }
+
+
 
     // Function to parse the response from Ollama
     string ParseOllamaResponse(string response)
@@ -161,20 +176,50 @@ public class PicoDialogue : MonoBehaviour
     // Detect when the player enters the interaction zone
     void OnTriggerEnter(Collider other)
     {
+        Debug.Log("OnTriggerEnter with " + other.name);
         if (other.CompareTag("Player"))
         {
             isPlayerNear = true;
-            // Optionally, display a prompt like "Press E to talk"
+            Debug.Log("Player is near the NPC");
         }
     }
 
     // Detect when the player leaves the interaction zone
     void OnTriggerExit(Collider other)
     {
+        Debug.Log("OnTriggerExit with " + other.name);
         if (other.CompareTag("Player"))
         {
             isPlayerNear = false;
-            // Optionally, hide any interaction prompts
+            Debug.Log("Player left the NPC");
+        }
+    }
+
+    // Assign default fonts if missing
+    void AssignFonts()
+    {
+        Font defaultFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+
+        if (dialogueText != null && dialogueText.font == null)
+        {
+            dialogueText.font = defaultFont;
+        }
+
+        if (playerInputField != null)
+        {
+            if (playerInputField.textComponent != null && playerInputField.textComponent.font == null)
+            {
+                playerInputField.textComponent.font = defaultFont;
+            }
+
+            if (playerInputField.placeholder != null)
+            {
+                Text placeholderText = playerInputField.placeholder as Text;
+                if (placeholderText != null && placeholderText.font == null)
+                {
+                    placeholderText.font = defaultFont;
+                }
+            }
         }
     }
 }
