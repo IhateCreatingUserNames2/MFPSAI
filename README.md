@@ -93,5 +93,9 @@ Contributing
 Feel free to contribute by submitting pull requests or reporting issues in the repository.
 
 Example Picture:
+
+Chat thru Photon Engine: 
+![image](https://github.com/user-attachments/assets/669d312b-4418-4737-9f94-cc02a6a8a0f0)
+
 ![image](https://github.com/user-attachments/assets/7256520a-6d7c-45fc-b730-e6f9138016a6)
 
