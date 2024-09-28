@@ -91,3 +91,7 @@ Use Unity's Console to check for errors during runtime.
 Log the response from Ollama using the www.downloadHandler.text in PicoDialogue.cs to debug API issues.
 Contributing
 Feel free to contribute by submitting pull requests or reporting issues in the repository.
+
+Example Picture:
+![image](https://github.com/user-attachments/assets/7256520a-6d7c-45fc-b730-e6f9138016a6)
+
