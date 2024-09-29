@@ -54,7 +54,7 @@ public class PicoDialogue : MonoBehaviour, IChatClientListener
         // Initialize Photon Chat Client
         ChatAppSettings chatAppSettings = new ChatAppSettings
         {
-            AppIdChat = "3c5a13f7-c3a4-4dfa-bd51-089fabc2c5ba",  // Use your real AppIdChat
+            AppIdChat = "Pohoton Chat ID",  // Use your real AppIdChat
             AppVersion = "1.0",         // Version of the app
             FixedRegion = "us",         // Adjust this to your region (e.g., us, eu)
             Protocol = ConnectionProtocol.Udp  // Use UDP or TCP based on your network
