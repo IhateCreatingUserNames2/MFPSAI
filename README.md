@@ -1,5 +1,5 @@
 Necessary for ANDROID:
-https://apt.izzysoft.de/fdroid/index/apk/com.freakurl.apps.ollama/
+https://github.com/undreamai/LLMUnity
 
 
 NPC Dialogue Tool - Ollama Integration
